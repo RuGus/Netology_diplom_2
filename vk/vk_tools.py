@@ -40,16 +40,20 @@ def create_user_session(user_token, api_version="5.131"):
     return vk_user_session
 
 
-def write_message_to_vk_user(vk_session, user_id, message):
+def write_message_to_vk_user(vk_session, user_id, message, attachment=""):
     """Отправка сообщения пользователю от сообщества.
 
     Args:
         vk_session (object): Сессия пользователя ВК.
         user_id (int): ИД пользователя.
         message (str): Сообщение пользователю.
+        attachment (str): Перечень вложений через ",".
     """
     vk_session.method('messages.send', {
-        'user_id': user_id, 'message': message,  'random_id': randrange(10 ** 7), })
+        'user_id': user_id,
+        'message': message,
+        'random_id': randrange(10 ** 7),
+        'attachment': attachment, })
 
 
 def get_vk_user_info(vk_session, user_id, fields=None):
@@ -180,14 +184,14 @@ def get_min_pop_photo_id(best_photo_dict):
     return min_pop_photo_id
 
 
-def get_3_pop_photo_url(user_photo_items):
+def get_3_pop_photo(user_photo_items):
     """Получение 3 самых популярных фотографий.
 
     Args:
         user_photo_items (dict): Словарь с фотографиями из ВК.
 
     Returns:
-        list: Список фото.
+        dict: Словарь фото.
     """
     pop_photo_url_list = []
     best_photo_dict = {}
@@ -224,13 +228,11 @@ def get_3_pop_photo_url(user_photo_items):
                         "comments_count": comments_count,
                         "url": get_best_size_url(item["sizes"]),
                     }
-    for photo in best_photo_dict.values():
-        pop_photo_url_list.append(photo["url"])
-    return pop_photo_url_list
+    return best_photo_dict
 
 
-def get_vk_user_3_foto(vk_session, user_id):
-    """Получение 3 самых популярных фотографий из профиля пользователя.
+def get_vk_user_3_foto_url(vk_session, user_id):
+    """Получение url 3 самых популярных фотографий из профиля пользователя.
 
     Args:
         vk_session (object): Сессия пользователя в ВК.
@@ -245,8 +247,32 @@ def get_vk_user_3_foto(vk_session, user_id):
         for item in user_photo["items"]:
             photo_links.append(get_best_size_url(item["sizes"]))
     elif user_photo["count"] > 3:
-        photo_links = get_3_pop_photo_url(user_photo["items"])
+        photo_links = get_3_pop_photo(user_photo["items"])
     return photo_links
+
+
+def get_vk_user_3_foto_attachment_value(vk_session, user_id):
+    """Получение значения attachment с 3 самыми популярными фотографиями
+    из профиля пользователя.
+
+    Args:
+        vk_session (object): Сессия пользователя в ВК.
+        user_id (int): ИД пользователя.
+
+    Returns:
+        str: Значение attachment.
+    """
+    user_photo = get_vk_user_profile_photos(vk_session, user_id)
+    attachment = ""
+    if 0 < user_photo["count"] <= 3:
+        for item in user_photo["items"]:
+            attachment += f'photo{user_id}_{item["id"]},'
+    elif user_photo["count"] > 3:
+        best_photo_dict = get_3_pop_photo(user_photo["items"])
+        for key in best_photo_dict:
+            attachment += f'photo{user_id}_{key},'
+    print(attachment)
+    return attachment
 
 
 def get_vk_user_link(user_id):

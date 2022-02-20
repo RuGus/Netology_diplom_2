@@ -3,7 +3,7 @@ import json
 from datetime import date, datetime
 
 from db.db_tools import SelectionDB
-from vk.vk_tools import (create_user_session, get_vk_user_3_foto,
+from vk.vk_tools import (create_user_session, get_vk_user_3_foto_attachment_value, get_vk_user_3_foto_url,
                          get_vk_user_info, get_vk_user_link, search_vk_user,
                          select_pair, write_message_to_vk_user)
 
@@ -146,7 +146,6 @@ class Selection:
         if self.user_token:
             self.user_vk_session = create_user_session(self.user_token)
 
-
     def get_selection(self):
         """Получение подбора.
         """
@@ -171,17 +170,18 @@ class Selection:
     def complete_selection(self):
         """Завершение подбора с выводом результата.
         """
+        attachment = ""
         if self.pair_user_id and self.pair_user_id != -1:
             self.db.set_result_vk_user_id(self.selection_id, self.pair_user_id)
             pair_user_url = get_vk_user_link(self.pair_user_id)
-            photo_list = get_vk_user_3_foto(
+            attachment = get_vk_user_3_foto_attachment_value(
                 self.user_vk_session, self.pair_user_id)
             answer = f"""Подобрана пара:
-            {pair_user_url}
-            {photo_list}"""
+            {pair_user_url}"""
         else:
             answer = "К сожалению, не удалось подобрать пару."
-        write_message_to_vk_user(self.group_vk_session, self.user_id, answer)
+        write_message_to_vk_user(
+            self.group_vk_session, self.user_id, answer, attachment)
         self.close_selection()
 
     def required_data_out(self):
@@ -197,7 +197,8 @@ class Selection:
                 out_data_list.append(item)
             elif item == "bdate":
                 try:
-                    datetime.strptime(self.target_user_info.get(item), "%d.%m.%Y").date()
+                    datetime.strptime(self.target_user_info.get(
+                        item), "%d.%m.%Y").date()
                 except:
                     out_data_list.append(item)
         return out_data_list
