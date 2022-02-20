@@ -170,6 +170,7 @@ class Selection:
     def complete_selection(self):
         """Завершение подбора с выводом результата.
         """
+        answer = ""
         attachment = ""
         if self.pair_user_id and self.pair_user_id != -1:
             self.db.set_result_vk_user_id(self.selection_id, self.pair_user_id)
@@ -178,11 +179,17 @@ class Selection:
                 self.user_vk_session, self.pair_user_id)
             answer = f"""Подобрана пара:
             {pair_user_url}"""
+            write_message_to_vk_user(
+            self.group_vk_session, self.user_id, answer, attachment)
+            self.db.add_user_id_to_shown(self.selection_id, self.pair_user_id)
+            answer = "Искать дальше?(да/нет)"
+            write_message_to_vk_user(
+                self.group_vk_session, self.user_id, answer)
         else:
             answer = "К сожалению, не удалось подобрать пару."
-        write_message_to_vk_user(
-            self.group_vk_session, self.user_id, answer, attachment)
-        self.close_selection()
+            write_message_to_vk_user(
+                self.group_vk_session, self.user_id, answer)
+            self.close_selection()
 
     def required_data_out(self):
         """Получение списка отсутствующих полей.
@@ -274,37 +281,40 @@ class Selection:
         elif self.stage_id == 5:
             shown_user_ids_list = self.db.get_shown_user_ids(
                 self.user_id, self.target_user_id)
-            if not self.pair_user_id:
-                # Расчет доп параметров
-                # Название города пары
-                if isinstance(self.target_user_info["city"], dict):
-                    self.pair_user_info["hometown"] = self.target_user_info["city"]["title"]
-                else:
-                    self.pair_user_info["hometown"] = self.target_user_info["city"]
-                # Возраст пары
-                a_date = datetime.strptime(
-                    self.target_user_info["bdate"], "%d.%m.%Y").date()
-                b_date = date.today()
-                age = calculate_years(a_date, b_date)
-                self.pair_user_info["age"] = age
-                # Пол пары
-                self.pair_user_info["sex"] = 0
-                if self.target_user_info["sex"] == 1:
-                    self.pair_user_info["sex"] = 2
-                elif self.target_user_info["sex"] == 2:
-                    self.pair_user_info["sex"] = 1
+            if message_text == "нет":
+                self.close_selection()
+            else:    
+                if not self.pair_user_id or self.pair_user_id in shown_user_ids_list:
+                    # Расчет доп параметров
+                    # Название города пары
+                    if isinstance(self.target_user_info["city"], dict):
+                        self.pair_user_info["hometown"] = self.target_user_info["city"]["title"]
+                    else:
+                        self.pair_user_info["hometown"] = self.target_user_info["city"]
+                    # Возраст пары
+                    a_date = datetime.strptime(
+                        self.target_user_info["bdate"], "%d.%m.%Y").date()
+                    b_date = date.today()
+                    age = calculate_years(a_date, b_date)
+                    self.pair_user_info["age"] = age
+                    # Пол пары
+                    self.pair_user_info["sex"] = 0
+                    if self.target_user_info["sex"] == 1:
+                        self.pair_user_info["sex"] = 2
+                    elif self.target_user_info["sex"] == 2:
+                        self.pair_user_info["sex"] = 1
 
-                add_fields = {
-                    "hometown": self.pair_user_info["hometown"],
-                    "age_from": self.pair_user_info["age"],
-                    "age_to": self.pair_user_info["age"],
-                    "sex": self.pair_user_info["sex"],
-                    "status": 6,
-                }
-                self.pair_user_id = select_pair(
-                    self.user_vk_session, add_fields, shown_user_ids_list)
-                self.db.set_result_vk_user_id(
-                    self.selection_id, self.pair_user_id)
-                self.processing_selection()
-            else:
-                self.complete_selection()
+                    add_fields = {
+                        "hometown": self.pair_user_info["hometown"],
+                        "age_from": self.pair_user_info["age"],
+                        "age_to": self.pair_user_info["age"],
+                        "sex": self.pair_user_info["sex"],
+                        "status": 6,
+                    }
+                    self.pair_user_id = select_pair(
+                        self.user_vk_session, add_fields, shown_user_ids_list)
+                    self.db.set_result_vk_user_id(
+                        self.selection_id, self.pair_user_id)
+                    self.processing_selection()
+                else:
+                    self.complete_selection()

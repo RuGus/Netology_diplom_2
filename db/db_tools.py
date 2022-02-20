@@ -28,6 +28,7 @@ class SelectionDB:
                     upadte_date TEXT,
                     end_date TEXT,
                     is_closed INT,
+                    shown_user_ids TEXT,
                     result_vk_user_id INT);
             """
             cursor.execute(sql_query)
@@ -70,6 +71,28 @@ class SelectionDB:
             cursor.execute(sql_query)
             stage_id = cursor.fetchone()[0]
         return stage_id
+
+    def get_vk_user_id(self, selection_id):
+        """Получение vk_user_id."""
+        with self.connection:
+            cursor = self.connection.cursor()
+            sql_query = f"""
+            SELECT vk_user_id FROM selections WHERE selection_id = '{selection_id}';
+            """
+            cursor.execute(sql_query)
+            vk_user_id = cursor.fetchone()[0]
+        return vk_user_id
+
+    def get_vk_target_id(self, selection_id):
+        """Получение vk_target_id."""
+        with self.connection:
+            cursor = self.connection.cursor()
+            sql_query = f"""
+            SELECT vk_target_id FROM selections WHERE selection_id = '{selection_id}';
+            """
+            cursor.execute(sql_query)
+            vk_target_id = cursor.fetchone()[0]
+        return vk_target_id
 
     def get_vk_target_info(self, selection_id):
         """Получение информации о целевом пользователе."""
@@ -178,10 +201,31 @@ class SelectionDB:
         """Получение списка показанных ранее результатов подбора."""
         with self.connection:
             cursor = self.connection.cursor()
-            sql_query = f"""SELECT result_vk_user_id FROM selections WHERE vk_user_id = '{user_id}' and vk_target_id = '{vk_target_id}' and is_closed = 1;
+            sql_query = f"""SELECT shown_user_ids FROM selections WHERE vk_user_id = '{user_id}' and vk_target_id = '{vk_target_id}';
             """
             cursor.execute(sql_query)
             ids_list = []
             for item in cursor.fetchall():
-                ids_list.append(item[0])
+                if item[0]:
+                    for val in item[0].split(","):
+                        if val:
+                            ids_list.append(int(val))
         return ids_list
+
+    def add_user_id_to_shown(self, selection_id, user_id):
+        """Запись ИД пользователя в перечень показанных."""
+        upadte_date = datetime.now()
+        vk_user_id = self.get_vk_user_id(selection_id)
+        vk_target_id = self.get_vk_target_id(selection_id)
+        shown_user_ids = self.get_shown_user_ids(vk_user_id, vk_target_id)
+        shown_user_ids.append(user_id)
+        str_shown_user_ids = ""
+        for item in shown_user_ids:
+            str_shown_user_ids += f"{item},"
+        with self.connection:
+            cursor = self.connection.cursor()
+            sql_query = f"""
+            UPDATE selections SET shown_user_ids = "{str_shown_user_ids}", upadte_date = '{upadte_date}' WHERE selection_id = '{selection_id}';
+            """
+            cursor.execute(sql_query)
+            self.connection.commit()
