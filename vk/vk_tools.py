@@ -124,7 +124,6 @@ def select_pair(vk_session, add_fields, shown_user_ids_list):
     Returns:
         int: Идентификатор подобранного пользователя.
     """
-    offset = 0
     pair_user_id = -1
     request_dict = {"q": ""}
     request_dict.update(add_fields)
@@ -271,7 +270,6 @@ def get_vk_user_3_foto_attachment_value(vk_session, user_id):
         best_photo_dict = get_3_pop_photo(user_photo["items"])
         for key in best_photo_dict:
             attachment += f'photo{user_id}_{key},'
-    print(attachment)
     return attachment
 
 
